@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # 1. MongoDB Database Service
+  mongodb:
+    image: mongo:7.0-jammy
+    container_name: pakproperty-mongodb
+    restart: unless-stopped
+    ports:
+      - '27017:27017'
+    environment:
+      MONGO_INITDB_DATABASE: pakproperty
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - pakproperty-network
+    healthcheck:
+      test: ['CMD', 'mongosh', '--eval', 'db.adminCommand("ping")']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 2. Express Backend API Service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: pakproperty-backend
+    restart: unless-stopped
+    ports:
+      - '5001:5001'
+    environment:
+      NODE_ENV: production
+      PORT: 5001
+      MONGODB_URI: mongodb://mongodb:27017/pakproperty
+      JWT_SECRET: ${JWT_SECRET:-pakproperty_production_secret_jwt_key_2026}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000,http://localhost}
+      SEED_ON_START: 'true'
+    volumes:
+      - backend-uploads:/app/uploads
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - pakproperty-network
+
+  # 3. Next.js Frontend Service
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: pakproperty-frontend
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      BACKEND_INTERNAL_URL: http://backend:5001
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+    depends_on:
+      - backend
+    networks:
+      - pakproperty-network
+
+volumes:
+  mongo-data:
+    driver: local
+  backend-uploads:
+    driver: local
+
+networks:
+  pakproperty-network:
+    driver: bridge
