@@ -1,0 +1,13 @@
+# The Next.js app lives in the frontend/ folder of this monorepo.
+[build]
+  base = "frontend"
+  # Install dependencies explicitly so `next` is available even when the
+  # deploy environment skips automatic dependency installation.
+  command = "npm ci && npm run build"
+  publish = ".next"
+
+# Netlify's Next.js adapter turns the .next output into routable pages and
+# server functions. Without it, .next is uploaded as plain files and every
+# URL returns "Page not found".
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
